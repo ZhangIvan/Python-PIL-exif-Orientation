@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+---------------------------------------------------
+
+@file: xtif.py
+
+@author: 'Ovan'
+
+@mtime: '2018/11/7'
+
+@desc:
+
+    获取 图片 是否被 翻转 的记录值 ：exif['Orientation']
+    exif : {'ExifOffset': 38, 'Orientation': 6, 'ExifImageWidth': 4032, 'ExifImageHeight': 3024}
+    `````````````````````````````````
+    
+
+---------------------------------------------------
+"""
+import os
+
+from PIL import Image
+from PIL.ExifTags import TAGS
+
+
+class ImageExifChange(object):
+    def __init__(self, fname):
+        self.fname = fname  # 文件路径名
+        self.imgeName = self.fname.split(os.path.sep)[-1]  # 获取图片文件名 xx.jpg之类的
+        self.filename, self.img_type = self.imgeName.split('.')
+
+    def get_exif_data(self):
+        """Get embedded EXIF data from image file."""
+        ret = {}
+        try:
+            img = Image.open(self.fname)
+            exifinfo = None
+            if hasattr(img, '_getexif'):
+                exifinfo = img._getexif()
+            if exifinfo:
+                for tag, value in exifinfo.items():
+                    decoded = TAGS.get(tag, tag)
+                    ret[decoded] = value
+
+            # return ret, img
+            print(ret)
+            if ret:
+                newFileName = self.imgRotate(exif=ret, img=img)
+                return newFileName
+            else:
+                img.save(self.imgeName)
+                return self.imgeName
+        except IOError as e:
+            """
+            走此流程就意味着 :
+            1. 此图片 不存在;
+            2. 此图片 exif等属性 为空;
+            3. 自定义此流程处理方法
+            """
+            print('ERROR : %s' % e)
+            print('ERROR : %s' % self.fname)
+
+    def imgRotate(self, exif, img):
+        """
+        handle image rotate
+        :exif = image all data - > {'ExifOffset': 38, 'Orientation': 6, 'ExifImageWidth': 4032, 'ExifImageHeight': 3024}
+        :img = image object
+        """
+
+        orientation = "Orientation"
+        if exif[orientation] == 3:
+            # rotate中的“expand = True”是将图片尺寸也进行相应的变换。如果不加这句，则size不变。
+            img = img.rotate(180, expand=True)
+        elif exif[orientation] == 6:
+            img = img.rotate(270, expand=True)
+        elif exif[orientation] == 8:
+            img = img.rotate(90, expand=True)
+
+        newFileName = self.filename + '_rotate.' + self.img_type
+        print('newFileName : ', newFileName)
+        img.save(newFileName)
+        return newFileName
+
+
+if __name__ == '__main__':
+    fileName = r'C:\Users\Ovan\Desktop\image_7OPKwHm.jpg'
+    Exif = ImageExifChange(fileName)
+    newFileName = Exif.get_exif_data()
+    print('新文件名称: %s' % newFileName)
